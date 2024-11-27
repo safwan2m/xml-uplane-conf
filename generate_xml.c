@@ -1,6 +1,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct array_carrier {
     char name[50];
@@ -39,7 +40,7 @@ void add_element(xmlNodePtr parent, const char *name, const char *content) {
     xmlNewChild(parent, NULL, BAD_CAST name, BAD_CAST content);
 }
 
-void generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
+char *generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
     // Create a new XML document
     xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
     xmlNodePtr root_node = xmlNewNode(NULL, BAD_CAST "user-plane-configuration");
@@ -100,14 +101,20 @@ void generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
     sprintf(buffer, "%d", oru->rx_array_carrier.n_ta_offset);
     add_element(rx_node, "n-ta-offset", buffer);
 
-    // Save XML to file
-    xmlSaveFormatFileEnc(filename, doc, "UTF-8", 1);
+    // Save the XML document to a string
+    xmlChar *xml_buffer = NULL;
+    int buffer_size = 0;
+    xmlDocDumpFormatMemoryEnc(doc, &xml_buffer, &buffer_size, "UTF-8", 1);
 
-    // Free the document
+    // Convert xmlChar* to a regular C string
+    char *xml_string = strdup((const char *)xml_buffer);
+
+    // Free the document and the temporary XML buffer
+    xmlFree(xml_buffer);
     xmlFreeDoc(doc);
     xmlCleanupParser();
 
-    printf("XML file '%s' generated successfully.\n", filename);
+    return xml_string;
 }
 
 int main() {
@@ -140,7 +147,10 @@ int main() {
     };
 
     // Generate the XML file
-    generate_uplane_conf_xml(&oru, "user_plane_configuration.xml");
+    char *xml_string = generate_uplane_conf_xml(&oru, "user_plane_configuration.xml");
+
+    // Print the XML string
+    printf("%s\n", xml_string);
 
     return 0;
 }

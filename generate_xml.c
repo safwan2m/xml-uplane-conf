@@ -1,12 +1,13 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 typedef struct array_carrier {
     char name[50];
     uint32_t arfcn_center;
-    uint64_t center_channel_bw;
+    uint32_t center_channel_bw;
     uint32_t channel_bw;
     char ru_carrier[10];
     char rw_duplex_scheme[10];
@@ -40,7 +41,7 @@ void add_element(xmlNodePtr parent, const char *name, const char *content) {
     xmlNewChild(parent, NULL, BAD_CAST name, BAD_CAST content);
 }
 
-char *generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
+char *generate_uplane_conf_xml(oai_oru_data_t *oru) {
     // Create a new XML document
     xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
     xmlNodePtr root_node = xmlNewNode(NULL, BAD_CAST "user-plane-configuration");
@@ -55,7 +56,7 @@ char *generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
     sprintf(buffer, "%d", oru->tx_array_carrier.arfcn_center);
     add_element(tx_node, "absolute-frequency-center", buffer);
 
-    sprintf(buffer, "%ld", oru->tx_array_carrier.center_channel_bw);
+    sprintf(buffer, "%u", oru->tx_array_carrier.center_channel_bw);
     add_element(tx_node, "center-of-channel-bandwidth", buffer);
 
     sprintf(buffer, "%d", oru->tx_array_carrier.channel_bw);
@@ -81,7 +82,7 @@ char *generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
     sprintf(buffer, "%d", oru->rx_array_carrier.arfcn_center);
     add_element(rx_node, "absolute-frequency-center", buffer);
 
-    sprintf(buffer, "%ld", oru->rx_array_carrier.center_channel_bw);
+    sprintf(buffer, "%u", oru->rx_array_carrier.center_channel_bw);
     add_element(rx_node, "center-of-channel-bandwidth", buffer);
 
     sprintf(buffer, "%d", oru->rx_array_carrier.channel_bw);
@@ -117,37 +118,150 @@ char *generate_uplane_conf_xml(oai_oru_data_t *oru, const char *filename) {
     return xml_string;
 }
 
+static void store_tx_array_carriers(xmlNode *node, array_carrier_t *tx_array_carrier)
+{
+  for (xmlNode *cur_child = node; cur_child; cur_child = cur_child->next) {
+    if(cur_child->type == XML_ELEMENT_NODE){
+    //   int value = atoi((const char *)xmlNodeGetContent(cur_child));
+    int value;
+
+      if (strcmp((const char *)cur_child->name, "name") == 0) {
+        strcpy(tx_array_carrier->name, (const char *)xmlNodeGetContent(cur_child));
+      } else if (strcmp((const char *)cur_child->name, "absolute-frequency-center") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        tx_array_carrier->arfcn_center = value;
+      } else if (strcmp((const char *)cur_child->name, "center-of-channel-bandwidth") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        tx_array_carrier->center_channel_bw = (uint32_t)value;
+      } else if (strcmp((const char *)cur_child->name, "channel-bandwidth") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        tx_array_carrier->channel_bw = value;
+      } else if (strcmp((const char *)cur_child->name, "active") == 0) {
+        strcpy(tx_array_carrier->ru_carrier, (const char *)xmlNodeGetContent(cur_child));
+      } else if (strcmp((const char *)cur_child->name, "duplex-scheme") == 0) {
+        strcpy(tx_array_carrier->rw_duplex_scheme, (const char *)xmlNodeGetContent(cur_child));
+      } else if (strcmp((const char *)cur_child->name, "gain") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        tx_array_carrier->gain = value;
+      } else if (strcmp((const char *)cur_child->name, "downlink-radio-frame-offset") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        tx_array_carrier->dl_radio_frame_offset = value;
+      } else if (strcmp((const char *)cur_child->name, "downlink-sfn-offset") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        tx_array_carrier->dl_sfn_offset = value;
+      }
+    }
+  }
+}
+
+static void store_rx_array_carriers(xmlNode *node, array_carrier_t *rx_array_carrier)
+{
+  for (xmlNode *cur_child = node; cur_child; cur_child = cur_child->next) {
+    if(cur_child->type == XML_ELEMENT_NODE){
+    //   int value = atoi((const char *)xmlNodeGetContent(cur_child));
+    int value;
+
+      if (strcmp((const char *)cur_child->name, "name") == 0) {
+        strcpy(rx_array_carrier->name, (const char *)xmlNodeGetContent(cur_child));
+      } else if (strcmp((const char *)cur_child->name, "absolute-frequency-center") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->arfcn_center = value;
+      } else if (strcmp((const char *)cur_child->name, "center-of-channel-bandwidth") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->center_channel_bw = (uint32_t)value;
+      } else if (strcmp((const char *)cur_child->name, "channel-bandwidth") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->channel_bw = value;
+      } else if (strcmp((const char *)cur_child->name, "active") == 0) {
+        strcpy(rx_array_carrier->ru_carrier, (const char *)xmlNodeGetContent(cur_child));
+      } else if (strcmp((const char *)cur_child->name, "downlink-radio-frame-offset") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->dl_radio_frame_offset = value;
+      } else if (strcmp((const char *)cur_child->name, "downlink-sfn-offset") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->dl_sfn_offset = value;
+      } else if (strcmp((const char *)cur_child->name, "gain-correction") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->gain_correction = value;
+      } else if (strcmp((const char *)cur_child->name, "n-ta-offset") == 0) {
+        value = atoi((const char *)xmlNodeGetContent(cur_child));
+        rx_array_carrier->n_ta_offset = value;
+      } 
+    }
+  }
+}
+
+static void find_uplane_conf_data(xmlNode *node, oai_oru_data_t *oru){
+    for(xmlNode *cur_node = node; cur_node; cur_node = cur_node->next){
+            if(cur_node->type == XML_ELEMENT_NODE){
+            if(strcmp((const char*)cur_node->name, "tx-array-carriers") == 0){
+                store_tx_array_carriers(cur_node->children, &oru->tx_array_carrier);
+                break;
+            } else {
+                find_uplane_conf_data(cur_node->children, oru);
+            }
+        }
+    }
+    for(xmlNode *cur_node = node; cur_node; cur_node = cur_node->next){
+            if(cur_node->type == XML_ELEMENT_NODE){
+            if(strcmp((const char*)cur_node->name, "rx-array-carriers") == 0){
+                store_rx_array_carriers(cur_node->children, &oru->rx_array_carrier);
+                break;
+            } else {
+                find_uplane_conf_data(cur_node->children, oru);
+            }
+        }
+    }
+}
+
+oai_oru_data_t get_uplane_conf_data(const char *filename){
+  oai_oru_data_t oru = {0};
+
+  // Initialize the xml file
+  xmlDoc *doc = xmlReadFile(filename, NULL, 0);
+  xmlNode *root_element = xmlDocGetRootElement(doc);
+
+  find_uplane_conf_data(root_element->children, &oru);
+
+  return oru;
+}
+
 int main() {
     // Define and initialize Tx and Rx array carrier structures
 
-    oai_oru_data_t oru = {
-        .tx_array_carrier = {
-            .name = "txarraycarrier0",
-            .arfcn_center = 646668,
-            .center_channel_bw = 3700020000, 
-            .channel_bw = 100000000,
-            .ru_carrier = "ACTIVE",
-            .rw_duplex_scheme = "TDD",
-            .rw_type = "NR",
-            .gain = 27.0,
-            .dl_radio_frame_offset = 0,
-            .dl_sfn_offset = 0
-        },
-        .rx_array_carrier = {
-            .name = "rxarraycarrier0",
-            .arfcn_center = 646668,
-            .center_channel_bw = 3700020000, 
-            .channel_bw = 100000000,
-            .ru_carrier = "ACTIVE",
-            .dl_radio_frame_offset = 0,
-            .dl_sfn_offset = 0,
-            .gain_correction = 0.0,
-            .n_ta_offset = 25600
-        }
-    };
+    char *filename = "192.168.4.34_conf.xml";
+    // oai_oru_data_t oru = {
+    //     .tx_array_carrier = {
+    //         .name = "txarraycarrier0",
+    //         .arfcn_center = 646668,
+    //         .center_channel_bw = 3700020000, 
+    //         .channel_bw = 100000000,
+    //         .ru_carrier = "ACTIVE",
+    //         .rw_duplex_scheme = "TDD",
+    //         .rw_type = "NR",
+    //         .gain = 27.0,
+    //         .dl_radio_frame_offset = 0,
+    //         .dl_sfn_offset = 0
+    //     },
+    //     .rx_array_carrier = {
+    //         .name = "rxarraycarrier0",
+    //         .arfcn_center = 646668,
+    //         .center_channel_bw = 3700020000, 
+    //         .channel_bw = 100000000,
+    //         .ru_carrier = "ACTIVE",
+    //         .dl_radio_frame_offset = 0,
+    //         .dl_sfn_offset = 0,
+    //         .gain_correction = 0.0,
+    //         .n_ta_offset = 25600
+    //     }
+    // };
+    oai_oru_data_t oru = {0};
+
+    // Read the uplane configurations from a file and populate oru
+    oru = get_uplane_conf_data(filename);
 
     // Generate the XML file
-    char *xml_string = generate_uplane_conf_xml(&oru, "user_plane_configuration.xml");
+    char *xml_string = generate_uplane_conf_xml(&oru);
 
     // Print the XML string
     printf("%s\n", xml_string);
